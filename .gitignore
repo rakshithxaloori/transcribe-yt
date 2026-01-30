@@ -1,5 +1,7 @@
 audios
 finished
 transcriptions
+summaries
 urls.txt
 .DS_Store
+.env.local
