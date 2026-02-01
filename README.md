@@ -15,6 +15,24 @@ Set your Gemini API key for summaries:
 export GEMINI_API_KEY="your-key"
 ```
 
+## API keys (Gemini + OpenAI)
+
+Gemini (Google AI Studio):
+1. Sign in to Google AI Studio and select or create a project.
+2. Open the API keys section and create a new key.
+3. Export it in your shell:
+   ```bash
+   export GEMINI_API_KEY="your-key"
+   ```
+
+OpenAI:
+1. Sign in to the OpenAI Platform.
+2. Go to API keys and create a new secret key.
+3. Export it in your shell:
+   ```bash
+   export OPENAI_API_KEY="your-key"
+   ```
+
 ## Usage
 
 1. Add YouTube URLs to `urls.txt` (one per line)
