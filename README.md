@@ -1,6 +1,6 @@
 # Transcribe YT
 
-Automated YouTube video transcription system using Whisper.
+Automated YouTube transcription + summary generation using Whisper and Gemini.
 
 ## Setup
 
@@ -9,7 +9,7 @@ pip install -r requirements.txt
 pip install yt-dlp
 ```
 
-Set your Gemini API key for summaries:
+Set your Gemini API key for summaries (via env var or `.env.local`):
 
 ```bash
 export GEMINI_API_KEY="your-key"
@@ -43,6 +43,8 @@ OpenAI:
    ```
 
 This downloads audio from URLs and transcribes them using Whisper. Processed files go to `finished/`, transcripts to `transcriptions/`.
+
+It also generates markdown summaries in `summaries/`.
 
 ## Manual transcription only
 
