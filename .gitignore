@@ -7,3 +7,5 @@ urls.txt
 .env.local
 todo.txt
 add-to-docs
+.state/
+__pycache__/

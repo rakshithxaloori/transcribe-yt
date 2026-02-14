@@ -11,9 +11,19 @@ SUMMARIES_DIR="./summaries"
 MAX_PARALLEL="${MAX_PARALLEL:-4}"
 SLEEP_SECONDS=120
 
+log() {
+  local ts
+  ts="$(date '+%Y-%m-%d %H:%M:%S %z')"
+  if [ "$#" -eq 0 ]; then
+    printf '[%s]\n' "$ts"
+  else
+    printf '[%s] %s\n' "$ts" "$*"
+  fi
+}
+
 case "$MAX_PARALLEL" in
   ''|*[!0-9]*|0)
-    echo "MAX_PARALLEL must be a positive integer (got: $MAX_PARALLEL)"
+    log "MAX_PARALLEL must be a positive integer (got: $MAX_PARALLEL)"
     exit 1
     ;;
 esac
@@ -52,11 +62,11 @@ download_one() {
   local fail_dir="$2"
   local fail_file
   [ -z "$url" ] && return 0
-  echo "downloading: $url"
+  log "downloading: $url"
   if yt-dlp --no-progress -x --audio-format mp3 -o "$OUTPUT_DIR/%(title)s.%(ext)s" "$url"; then
-    echo "done: $url"
+    log "done: $url"
   else
-    echo "failed: $url"
+    log "failed: $url"
     fail_file="$(mktemp "$fail_dir/fail.XXXXXX.txt")"
     printf "%s\n" "$url" > "$fail_file"
   fi
@@ -83,11 +93,19 @@ run_download_batch() {
   rm -rf "$fail_dir"
 }
 
+run_download_once() {
+  if has_pending_urls; then
+    run_download_batch
+  else
+    log "download: no pending urls"
+  fi
+}
+
 run_transcribe_once() {
   if has_pending_audio; then
     python3 transcribe.py
   else
-    echo "transcribe: no pending audio"
+    log "transcribe: no pending audio"
   fi
 }
 
@@ -95,53 +113,21 @@ run_summarize_once() {
   if has_pending_transcriptions; then
     python3 summarize.py
   else
-    echo "summarize: no pending transcriptions"
+    log "summarize: no pending transcriptions"
   fi
 }
 
-downloader_loop() {
+worker_loop() {
+  local worker_name="$1"
+  local run_once_fn="$2"
   while true; do
     if should_exit; then
-      echo "download: no pending work, exiting"
+      log "$worker_name: no pending work, exiting"
       return 0
     fi
-    if has_pending_urls; then
-      run_download_batch
-    else
-      echo "download: no pending urls"
-    fi
+    "$run_once_fn"
     if should_exit; then
-      echo "download: pipeline drained, exiting"
-      return 0
-    fi
-    sleep "$SLEEP_SECONDS"
-  done
-}
-
-transcribe_loop() {
-  while true; do
-    if should_exit; then
-      echo "transcribe: no pending work, exiting"
-      return 0
-    fi
-    run_transcribe_once
-    if should_exit; then
-      echo "transcribe: pipeline drained, exiting"
-      return 0
-    fi
-    sleep "$SLEEP_SECONDS"
-  done
-}
-
-summarize_loop() {
-  while true; do
-    if should_exit; then
-      echo "summarize: no pending work, exiting"
-      return 0
-    fi
-    run_summarize_once
-    if should_exit; then
-      echo "summarize: pipeline drained, exiting"
+      log "$worker_name: pipeline drained, exiting"
       return 0
     fi
     sleep "$SLEEP_SECONDS"
@@ -155,21 +141,21 @@ fi
 source ../venv/bin/activate
 
 if should_exit; then
-  echo "nothing to do. urls/audios/transcriptions are already drained."
+  log "nothing to do. urls/audios/transcriptions are already drained."
   exit 0
 fi
 
-downloader_loop &
+worker_loop "download" run_download_once &
 DOWNLOAD_PID=$!
-transcribe_loop &
+worker_loop "transcribe" run_transcribe_once &
 TRANSCRIBE_PID=$!
-summarize_loop &
+worker_loop "summarize" run_summarize_once &
 SUMMARIZE_PID=$!
 
 cleanup_on_signal() {
   trap - INT TERM
-  echo
-  echo "stopping workers..."
+  log
+  log "stopping workers..."
   kill "$DOWNLOAD_PID" "$TRANSCRIBE_PID" "$SUMMARIZE_PID" 2>/dev/null || true
   wait "$DOWNLOAD_PID" "$TRANSCRIBE_PID" "$SUMMARIZE_PID" 2>/dev/null || true
   exit 130
@@ -182,4 +168,4 @@ wait "$TRANSCRIBE_PID"
 wait "$SUMMARIZE_PID"
 
 trap - INT TERM
-echo "all done. urls are empty and there is nothing left in audios/transcriptions to process."
+log "all done. urls are empty and there is nothing left in audios/transcriptions to process."

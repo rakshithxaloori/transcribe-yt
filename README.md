@@ -15,6 +15,41 @@ Set your Gemini API key for summaries (via env var or `.env.local`):
 export GEMINI_API_KEY="your-key"
 ```
 
+Optional: set a local daily request cap to avoid hitting Gemini free-tier RPD hard limits.  
+Default is `18` requests/day (tracked in `.state/gemini_usage.json` and reset daily).
+
+```bash
+export GEMINI_DAILY_REQUEST_CAP=18
+```
+
+Optional: summarize transcripts in batches to reduce requests/day.  
+Default is `5` transcripts per request (set to `1` to disable batching).
+
+```bash
+export GEMINI_SUMMARY_BATCH_SIZE=5
+```
+
+Optional: fallback cooldown after quota/rate-limit errors when Gemini doesn't provide a retry delay.  
+Default is `3600` seconds.
+
+```bash
+export GEMINI_QUOTA_COOLDOWN_SECONDS=3600
+```
+
+Optional: auto-retry count for quota errors that include a concrete retry delay (for example, `Please retry in 47s`).  
+Default is `3`.
+
+```bash
+export GEMINI_QUOTA_RETRY_ATTEMPTS=3
+```
+
+Optional: choose summary provider explicitly.  
+Default is `gemini`; set `openai` to use `OPENAI_API_KEY`.
+
+```bash
+export SUMMARY_PROVIDER=gemini
+```
+
 ## API keys (Gemini + OpenAI)
 
 Gemini (Google AI Studio):

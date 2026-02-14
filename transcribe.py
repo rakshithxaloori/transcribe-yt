@@ -1,45 +1,74 @@
-import os
 import shutil
+from datetime import datetime
+from pathlib import Path
+
 import whisper
 
-# directories
-audio_dir = "audios"            # input folder containing audio
-finished_dir = "finished"            # where to move processed files
-transcriptions_dir = "transcriptions"  # where to save text outputs
 
-# create output dirs if not exist
-os.makedirs(finished_dir, exist_ok=True)
-os.makedirs(transcriptions_dir, exist_ok=True)
+def _human_timestamp() -> str:
+    return datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
 
-# load whisper model
-model = whisper.load_model("small")
 
-# iterate over all files in audio_dir
-for filename in os.listdir(audio_dir):
-    filepath = os.path.join(audio_dir, filename)
+def log(*args: object, **kwargs: object) -> None:
+    print(f"[{_human_timestamp()}]", *args, **kwargs)
 
-    # skip non-audio files
-    if not filename.lower().endswith((".mp3", ".wav", ".m4a", ".flac", ".ogg")):
-        continue
 
-    transcript_path = os.path.join(
-        transcriptions_dir, os.path.splitext(filename)[0] + ".txt"
+AUDIO_DIR = Path("audios")
+FINISHED_DIR = Path("finished")
+TRANSCRIPTIONS_DIR = Path("transcriptions")
+AUDIO_SUFFIXES = (".mp3", ".wav", ".m4a", ".flac", ".ogg")
+
+
+def ensure_output_dirs() -> None:
+    FINISHED_DIR.mkdir(exist_ok=True)
+    TRANSCRIPTIONS_DIR.mkdir(exist_ok=True)
+
+
+def iter_audio_files() -> list[Path]:
+    if not AUDIO_DIR.is_dir():
+        return []
+    return sorted(
+        (
+            path
+            for path in AUDIO_DIR.iterdir()
+            if path.is_file() and path.suffix.lower() in AUDIO_SUFFIXES
+        ),
+        key=lambda path: path.name.lower(),
     )
-    if os.path.exists(transcript_path) and os.path.getsize(transcript_path) > 0:
-        print(f"skipping {filename} (transcript exists)")
-        shutil.move(filepath, os.path.join(finished_dir, filename))
-        continue
 
-    print(f"transcribing {filename}...")
 
-    # transcribe
-    result = model.transcribe(filepath)
+def transcript_output_path(audio_path: Path) -> Path:
+    return TRANSCRIPTIONS_DIR / f"{audio_path.stem}.txt"
 
-    # save transcription
-    with open(transcript_path, "w", encoding="utf-8") as f:
-        f.write(result["text"].strip())
 
-    # move processed file
-    shutil.move(filepath, os.path.join(finished_dir, filename))
+def move_to_finished(audio_path: Path) -> None:
+    destination = FINISHED_DIR / audio_path.name
+    shutil.move(str(audio_path), str(destination))
 
-print("done.")
+
+def transcribe_file(audio_path: Path, model) -> None:
+    transcript_path = transcript_output_path(audio_path)
+    try:
+        if transcript_path.exists() and transcript_path.stat().st_size > 0:
+            log(f"skipping {audio_path.name} (transcript exists)")
+            move_to_finished(audio_path)
+            return
+
+        log(f"transcribing {audio_path.name}...")
+        result = model.transcribe(str(audio_path))
+        transcript_path.write_text((result.get("text") or "").strip(), encoding="utf-8")
+        move_to_finished(audio_path)
+    except Exception as exc:
+        log(f"failed to process {audio_path.name}: {exc}")
+
+
+def main() -> None:
+    ensure_output_dirs()
+    model = whisper.load_model("small")
+    for audio_path in iter_audio_files():
+        transcribe_file(audio_path, model)
+    log("done.")
+
+
+if __name__ == "__main__":
+    main()
