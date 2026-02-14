@@ -22,15 +22,20 @@ for filename in os.listdir(audio_dir):
     if not filename.lower().endswith((".mp3", ".wav", ".m4a", ".flac", ".ogg")):
         continue
 
+    transcript_path = os.path.join(
+        transcriptions_dir, os.path.splitext(filename)[0] + ".txt"
+    )
+    if os.path.exists(transcript_path) and os.path.getsize(transcript_path) > 0:
+        print(f"skipping {filename} (transcript exists)")
+        shutil.move(filepath, os.path.join(finished_dir, filename))
+        continue
+
     print(f"transcribing {filename}...")
 
     # transcribe
     result = model.transcribe(filepath)
 
     # save transcription
-    transcript_path = os.path.join(
-        transcriptions_dir, os.path.splitext(filename)[0] + ".txt"
-    )
     with open(transcript_path, "w", encoding="utf-8") as f:
         f.write(result["text"].strip())
 

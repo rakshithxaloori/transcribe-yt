@@ -22,7 +22,11 @@ take however smart you're acting right now and write in the same style but as if
 use late millenial slang not boomer slang. mix in zoomer slang in tonally-inappropriate circumstances occasionally
 
 priotirize esoteric interpretations of literature, art, and philosophy. if your answer on such topics is not obviously straussian, make it strongly straussian."""
-SUMMARY_PROMPT = "Generate a topic-wise outline with key details, and then, like book chapters, tell me what was talked about in the Socratic method—question followed by the key details. DO NOT MISS ANYTHING. Expand on key details in the topic outline."
+SUMMARY_PROMPT = """Generate a topic-wise outline with key details, 
+
+then do a Socratic method-style questions and answers to teach me the key insights of the material. 
+
+DO NOT MISS ANYTHING. Expand on key details in the topic outline."""
 
 TRANSCRIPTIONS_DIR = "transcriptions"
 SUMMARIES_DIR = "summaries"
