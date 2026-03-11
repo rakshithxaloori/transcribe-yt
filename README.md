@@ -77,9 +77,15 @@ OpenAI:
    ./download.sh
    ```
 
-This downloads audio from URLs and transcribes them using Whisper. Processed files go to `finished/`, transcripts to `transcriptions/`.
+This downloads audio from URLs and transcribes them using Whisper. Processed files go to `finished/`, transcripts to `transcriptions/`, and transcript metadata sidecars to `transcriptions/meta/`.
 
-It also generates markdown summaries in `summaries/`.
+It also generates markdown summaries in `summaries/`. If a publish date is available from YouTube metadata, each summary includes frontmatter like:
+
+```md
+---
+date: 2026-02-14
+---
+```
 
 ## Manual transcription only
 

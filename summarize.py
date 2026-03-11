@@ -1,3 +1,5 @@
+import json
+import re
 import time
 
 from pathlib import Path
@@ -23,11 +25,43 @@ from summarize_helpers import (
     summarize_with_client,
 )
 
+TRANSCRIPTIONS_META_DIR = TRANSCRIPTIONS_DIR / "meta"
+ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-def write_summary(out_path: Path, title: str, summary: str) -> None:
+
+def write_summary(
+    out_path: Path,
+    title: str,
+    summary: str,
+    publish_date: str | None = None,
+) -> None:
     with out_path.open("w", encoding="utf-8") as file:
+        if publish_date:
+            file.write("---\n")
+            file.write(f"date: {publish_date}\n")
+            file.write("---\n\n")
         file.write(f"# Summary: {title}\n\n")
         file.write(summary + "\n")
+
+
+def load_publish_date(transcript_path: Path) -> str | None:
+    metadata_path = TRANSCRIPTIONS_META_DIR / f"{transcript_path.stem}.json"
+    if not metadata_path.is_file():
+        return None
+
+    try:
+        payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        log(f"warning: failed to parse {metadata_path.name}: {exc}")
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    publish_date = str(payload.get("publish_date") or "").strip()
+    if publish_date and ISO_DATE_RE.fullmatch(publish_date):
+        return publish_date
+    return None
 
 
 def maybe_archive(transcript_path: Path, warning_prefix: str) -> None:
@@ -159,7 +193,12 @@ def summarize_transcript(
         log(f"empty summary for {filename}; skipping write")
         return False
 
-    write_summary(summary_output_path(transcript_path), transcript_path.stem, summary)
+    write_summary(
+        summary_output_path(transcript_path),
+        transcript_path.stem,
+        summary,
+        publish_date=load_publish_date(transcript_path),
+    )
     maybe_archive(
         transcript_path,
         "warning: summary generated, but failed to archive",
@@ -222,7 +261,12 @@ def summarize_batch(
             log(f"warning: missing/empty summary for {filename}; leaving transcript for retry")
             continue
 
-        write_summary(summary_output_path(transcript_path), transcript_path.stem, summary)
+        write_summary(
+            summary_output_path(transcript_path),
+            transcript_path.stem,
+            summary,
+            publish_date=load_publish_date(transcript_path),
+        )
         maybe_archive(
             transcript_path,
             "warning: summary generated, but failed to archive",

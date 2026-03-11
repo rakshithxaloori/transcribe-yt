@@ -53,7 +53,7 @@ GEMINI_USAGE_PATH = STATE_DIR / "gemini_usage.json"
 DEFAULT_GEMINI_DAILY_REQUEST_CAP = 18
 DEFAULT_QUOTA_COOLDOWN_SECONDS = 3600
 DEFAULT_QUOTA_RETRY_ATTEMPTS = 3
-DEFAULT_SUMMARY_BATCH_SIZE = 5
+DEFAULT_SUMMARY_BATCH_SIZE = 1
 DEFAULT_SUMMARY_PROVIDER = "gemini"
 QUOTA_ERROR_SNIPPETS = (
     "429",
@@ -148,7 +148,9 @@ class UsageState:
         state = {
             "date": today,
             "requests_used": max(0, requests_used),
-            "cooldown_until_epoch": float(saved_state.get("cooldown_until_epoch", 0.0) or 0.0),
+            "cooldown_until_epoch": float(
+                saved_state.get("cooldown_until_epoch", 0.0) or 0.0
+            ),
         }
 
         if state["requests_used"] > self._daily_cap:
@@ -195,7 +197,9 @@ def build_batch_prompt(items: list[BatchSummaryItem]) -> str:
         "For each transcript, output exactly one summary block with an id that matches the transcript id."
     )
     lines.append("")
-    lines.append("Return ONLY blocks in this exact format, one per transcript, in the same order:")
+    lines.append(
+        "Return ONLY blocks in this exact format, one per transcript, in the same order:"
+    )
     lines.append('<<<begin_summary id="t1">>>')
     lines.append("<summary text>")
     lines.append("<<<end_summary>>>")

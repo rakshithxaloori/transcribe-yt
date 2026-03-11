@@ -63,7 +63,14 @@ download_one() {
   local fail_file
   [ -z "$url" ] && return 0
   log "downloading: $url"
-  if yt-dlp --no-progress -x --audio-format mp3 -o "$OUTPUT_DIR/%(title)s.%(ext)s" "$url"; then
+  if yt-dlp \
+    --no-progress \
+    -x \
+    --audio-format mp3 \
+    --write-info-json \
+    --no-write-playlist-metafiles \
+    -o "$OUTPUT_DIR/%(title)s.%(ext)s" \
+    "$url"; then
     log "done: $url"
   else
     log "failed: $url"

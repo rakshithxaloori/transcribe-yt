@@ -36,6 +36,7 @@
 - When a transcript is skipped because its summary already exists, archive the transcript anyway so `transcriptions/` drains.
 - For script cleanups, move env/quota/state helpers into a module and keep the CLI file focused on per-file orchestration.
 - For cleanup reviews, scan files with `nl -ba` and report opportunities by impact with exact file:line pointers.
+- For YouTube publish dates, enable `yt-dlp --write-info-json`, persist per-transcript sidecars in `transcriptions/meta/`, and read `publish_date` when writing summary frontmatter.
 
 ## Patterns That Don't Work
 - (approaches that failed and why)
