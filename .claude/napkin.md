@@ -16,6 +16,9 @@
 | 2026-02-14 | self | Tried reading Gemini Batch API docs at `/gemini-api/docs/batch` and got 404 | Use `/gemini-api/docs/batch-api` (and note Batch API uses `:batchGenerateContent`, not the OpenAI-compat endpoints) |
 | 2026-02-14 | self | `apply_patch` failed due to context mismatch when editing `summarize_helpers.py` | Use `rg`/`nl -ba` to grab exact surrounding lines and apply smaller, targeted hunks |
 | 2026-02-14 | self | Announced napkin usage in a user-facing status update again | Apply napkin silently; keep progress updates focused on task actions/results |
+| 2026-03-13 | user | I was about to treat the reading-list export as a copy-style sync | Implement it as a move: generated summaries should leave `summaries/` and replace the destination file |
+| 2026-03-13 | self | First pass deleted the destination before `Path.replace()`, which weakened same-filesystem replacement semantics | Let `Path.replace()` do the overwrite first; only unlink during the cross-device (`EXDEV`) fallback |
+| 2026-03-13 | user | Asked to move the hardcoded export path into env config | Keep filesystem destinations in `.env.local`/env vars, not source constants |
 
 ## User Preferences
 - (accumulate here as you learn them)
@@ -37,6 +40,7 @@
 - For script cleanups, move env/quota/state helpers into a module and keep the CLI file focused on per-file orchestration.
 - For cleanup reviews, scan files with `nl -ba` and report opportunities by impact with exact file:line pointers.
 - For YouTube publish dates, enable `yt-dlp --write-info-json`, persist per-transcript sidecars in `transcriptions/meta/`, and read `publish_date` when writing summary frontmatter.
+- Treat `summaries/` as a staging directory only; the canonical summary location comes from `READING_LIST_MARKDOWN_DIR`.
 
 ## Patterns That Don't Work
 - (approaches that failed and why)

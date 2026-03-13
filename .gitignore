@@ -4,6 +4,7 @@ transcriptions
 summaries
 urls.txt
 .DS_Store
+.env
 .env.local
 todo.txt
 add-to-docs

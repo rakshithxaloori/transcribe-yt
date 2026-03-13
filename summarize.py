@@ -1,5 +1,8 @@
+import errno
 import json
+import os
 import re
+import shutil
 import time
 
 from pathlib import Path
@@ -19,6 +22,7 @@ from summarize_helpers import (
     get_summary_batch_size,
     is_quota_error,
     log,
+    load_local_env,
     load_quota_config,
     parse_batch_summaries,
     parse_retry_delay_seconds,
@@ -26,6 +30,7 @@ from summarize_helpers import (
 )
 
 TRANSCRIPTIONS_META_DIR = TRANSCRIPTIONS_DIR / "meta"
+READING_LIST_MARKDOWN_DIR_ENV = "READING_LIST_MARKDOWN_DIR"
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -76,17 +81,80 @@ def summary_output_path(transcript_path: Path) -> Path:
     return SUMMARIES_DIR / f"{transcript_path.stem}.md"
 
 
+def reading_list_markdown_dir() -> Path:
+    load_local_env()
+    raw = os.getenv(READING_LIST_MARKDOWN_DIR_ENV, "").strip()
+    if not raw:
+        raise RuntimeError(f"{READING_LIST_MARKDOWN_DIR_ENV} is not set")
+    return Path(raw).expanduser()
+
+
+def summary_destination_path(transcript_path: Path) -> Path:
+    return reading_list_markdown_dir() / f"{transcript_path.stem}.md"
+
+
+def move_summary_to_destination(summary_path: Path) -> Path:
+    destination_dir = reading_list_markdown_dir()
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    destination_path = destination_dir / summary_path.name
+
+    try:
+        summary_path.replace(destination_path)
+    except OSError as exc:
+        if exc.errno != errno.EXDEV:
+            raise
+        if destination_path.exists():
+            destination_path.unlink()
+        shutil.move(str(summary_path), str(destination_path))
+
+    log(f"moved summary: {destination_path}")
+    return destination_path
+
+
+def flush_staged_summaries() -> None:
+    if not SUMMARIES_DIR.is_dir():
+        return
+
+    for summary_path in sorted(SUMMARIES_DIR.glob("*.md"), key=lambda path: path.name.lower()):
+        move_summary_to_destination(summary_path)
+
+
 def has_existing_summary(transcript_path: Path) -> bool:
     filename = transcript_path.name
-    out_path = summary_output_path(transcript_path)
-    if out_path.exists() and out_path.stat().st_size > 0:
-        log(f"skipping {filename} (summary exists)")
+    destination_path = summary_destination_path(transcript_path)
+    if destination_path.exists() and destination_path.stat().st_size > 0:
+        log(f"skipping {filename} (summary exists at {destination_path})")
         maybe_archive(
             transcript_path,
             "warning: summary exists, but failed to archive",
         )
         return True
+
+    staged_path = summary_output_path(transcript_path)
+    if staged_path.exists() and staged_path.stat().st_size > 0:
+        destination_path = move_summary_to_destination(staged_path)
+        log(f"skipping {filename} (summary exists at {destination_path})")
+        maybe_archive(
+            transcript_path,
+            "warning: summary exists, but failed to archive",
+        )
+        return True
+
     return False
+
+
+def write_and_move_summary(
+    transcript_path: Path,
+    summary: str,
+) -> Path:
+    staged_path = summary_output_path(transcript_path)
+    write_summary(
+        staged_path,
+        transcript_path.stem,
+        summary,
+        publish_date=load_publish_date(transcript_path),
+    )
+    return move_summary_to_destination(staged_path)
 
 
 def handle_quota_exception(
@@ -193,12 +261,7 @@ def summarize_transcript(
         log(f"empty summary for {filename}; skipping write")
         return False
 
-    write_summary(
-        summary_output_path(transcript_path),
-        transcript_path.stem,
-        summary,
-        publish_date=load_publish_date(transcript_path),
-    )
+    write_and_move_summary(transcript_path, summary)
     maybe_archive(
         transcript_path,
         "warning: summary generated, but failed to archive",
@@ -261,12 +324,7 @@ def summarize_batch(
             log(f"warning: missing/empty summary for {filename}; leaving transcript for retry")
             continue
 
-        write_summary(
-            summary_output_path(transcript_path),
-            transcript_path.stem,
-            summary,
-            publish_date=load_publish_date(transcript_path),
-        )
+        write_and_move_summary(transcript_path, summary)
         maybe_archive(
             transcript_path,
             "warning: summary generated, but failed to archive",
@@ -282,6 +340,7 @@ def transcript_files() -> list[Path]:
 
 
 def main():
+    load_local_env()
     client = get_client()
     quota = load_quota_config()
     batch_size = get_summary_batch_size()
@@ -316,6 +375,7 @@ def main():
         if not stop_run and batch:
             summarize_batch(batch, client, usage_state, quota)
 
+    flush_staged_summaries()
     log("done.")
 
 
