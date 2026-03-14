@@ -15,12 +15,6 @@ Set your Gemini API key for summaries (via env var or `.env.local`):
 export GEMINI_API_KEY="your-key"
 ```
 
-Set the reading-list destination for finished summaries:
-
-```bash
-export READING_LIST_MARKDOWN_DIR="/Users/rakshithaloori/Personal/rakshithxaloori/content/rss-feeds/my-secret-reading-list/markdown"
-```
-
 Optional: set a local daily request cap to avoid hitting Gemini free-tier RPD hard limits.  
 Default is `18` requests/day (tracked in `.state/gemini_usage.json` and reset daily).
 
@@ -85,7 +79,7 @@ OpenAI:
 
 This downloads audio from URLs and transcribes them using Whisper. Processed files go to `finished/`, transcripts to `transcriptions/`, and transcript metadata sidecars to `transcriptions/meta/`.
 
-It stages markdown summaries in `summaries/`, then moves them into the directory from `READING_LIST_MARKDOWN_DIR`, replacing any existing file with the same name. If a publish date is available from YouTube metadata, each summary includes frontmatter like:
+It also generates markdown summaries in `summaries/`. If a publish date is available from YouTube metadata, each summary includes frontmatter like:
 
 ```md
 ---
