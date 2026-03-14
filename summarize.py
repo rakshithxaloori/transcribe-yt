@@ -40,7 +40,7 @@ def write_summary(
             file.write("---\n")
             file.write(f"date: {publish_date}\n")
             file.write("---\n\n")
-        file.write(f"# Summary: {title}\n\n")
+        file.write(f"# {title}\n\n")
         file.write(summary + "\n")
 
 
@@ -114,10 +114,7 @@ def handle_quota_exception(
         time.sleep(cooldown)
         return True, next_retry
 
-    log(
-        "gemini reported quota/rate exhaustion; "
-        f"pausing requests for {cooldown}s."
-    )
+    log("gemini reported quota/rate exhaustion; " f"pausing requests for {cooldown}s.")
     return False, file_quota_retries
 
 
@@ -259,7 +256,9 @@ def summarize_batch(
 
         summary = (summaries.get(item.item_id) or "").strip()
         if not summary:
-            log(f"warning: missing/empty summary for {filename}; leaving transcript for retry")
+            log(
+                f"warning: missing/empty summary for {filename}; leaving transcript for retry"
+            )
             continue
 
         write_summary(
