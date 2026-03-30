@@ -50,3 +50,4 @@
 - `summarize.py` uses Gemini via the OpenAI SDK with `GEMINI_API_KEY` (also reads `.env.local`).
 - `summarize.py` now archives successfully summarized transcripts under `transcriptions/archive/`.
 - `transcribe.py` currently loads Whisper once (`small`) and transcribes files in `audios/` sequentially, writing `transcriptions/*.txt` and moving audio to `finished/`.
+- `transcribe.py` only scans `audios/` for `.mp3`, `.wav`, `.m4a`, `.flac`, and `.ogg`; raw `.webm` downloads will sit unprocessed unless yt-dlp extracts/converts them first.

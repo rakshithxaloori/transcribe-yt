@@ -33,35 +33,43 @@ def write_summary(
     out_path: Path,
     title: str,
     summary: str,
-    publish_date: str | None = None,
+    metadata: dict[str, str] | None = None,
 ) -> None:
+    frontmatter = metadata or {}
     with out_path.open("w", encoding="utf-8") as file:
-        if publish_date:
+        if frontmatter:
             file.write("---\n")
-            file.write(f"date: {publish_date}\n")
+            for key, value in frontmatter.items():
+                file.write(f"{key}: {value}\n")
             file.write("---\n\n")
         file.write(f"# {title}\n\n")
         file.write(summary + "\n")
 
 
-def load_publish_date(transcript_path: Path) -> str | None:
+def load_summary_metadata(transcript_path: Path) -> dict[str, str]:
     metadata_path = TRANSCRIPTIONS_META_DIR / f"{transcript_path.stem}.json"
     if not metadata_path.is_file():
-        return None
+        return {}
 
     try:
         payload = json.loads(metadata_path.read_text(encoding="utf-8"))
     except Exception as exc:
         log(f"warning: failed to parse {metadata_path.name}: {exc}")
-        return None
+        return {}
 
     if not isinstance(payload, dict):
-        return None
+        return {}
 
+    metadata: dict[str, str] = {}
     publish_date = str(payload.get("publish_date") or "").strip()
     if publish_date and ISO_DATE_RE.fullmatch(publish_date):
-        return publish_date
-    return None
+        metadata["date"] = publish_date
+
+    video_url = str(payload.get("url") or "").strip()
+    if video_url:
+        metadata["video_url"] = video_url
+
+    return metadata
 
 
 def maybe_archive(transcript_path: Path, warning_prefix: str) -> None:
@@ -195,7 +203,7 @@ def summarize_transcript(
         summary_output_path(transcript_path),
         transcript_path.stem,
         summary,
-        publish_date=load_publish_date(transcript_path),
+        metadata=load_summary_metadata(transcript_path),
     )
     maybe_archive(
         transcript_path,
@@ -265,7 +273,7 @@ def summarize_batch(
             summary_output_path(transcript_path),
             transcript_path.stem,
             summary,
-            publish_date=load_publish_date(transcript_path),
+            metadata=load_summary_metadata(transcript_path),
         )
         maybe_archive(
             transcript_path,

@@ -79,11 +79,12 @@ OpenAI:
 
 This downloads audio from URLs and transcribes them using Whisper. Processed files go to `finished/`, transcripts to `transcriptions/`, and transcript metadata sidecars to `transcriptions/meta/`.
 
-It also generates markdown summaries in `summaries/`. If a publish date is available from YouTube metadata, each summary includes frontmatter like:
+It also generates markdown summaries in `summaries/`. If YouTube metadata is available, each summary includes frontmatter like:
 
 ```md
 ---
 date: 2026-02-14
+video_url: https://www.youtube.com/watch?v=abc123xyz
 ---
 ```
 
