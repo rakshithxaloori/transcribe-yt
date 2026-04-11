@@ -1,72 +1,30 @@
 # Transcribe YT
 
-Automated YouTube transcription + summary generation using Whisper and Gemini.
+Automated YouTube transcription plus local summary generation with Whisper and Ollama.
 
 ## Setup
 
 ```bash
 pip install -r requirements.txt
 pip install yt-dlp
+ollama serve
+ollama pull gemma4:e4b
 ```
 
-Set your Gemini API key for summaries (via env var or `.env.local`):
+Set your Ollama model, either in your shell or in `.env.local`:
 
 ```bash
-export GEMINI_API_KEY="your-key"
+export OLLAMA_MODEL="gemma4:e4b"
 ```
 
-Optional: set a local daily request cap to avoid hitting Gemini free-tier RPD hard limits.  
-Default is `18` requests/day (tracked in `.state/gemini_usage.json` and reset daily).
+Optional settings:
 
 ```bash
-export GEMINI_DAILY_REQUEST_CAP=18
+export OLLAMA_BASE_URL="http://127.0.0.1:11434"
+export OLLAMA_TIMEOUT_SECONDS=600
 ```
 
-Optional: summarize transcripts in batches to reduce requests/day.  
-Default is `5` transcripts per request (set to `1` to disable batching).
-
-```bash
-export GEMINI_SUMMARY_BATCH_SIZE=5
-```
-
-Optional: fallback cooldown after quota/rate-limit errors when Gemini doesn't provide a retry delay.  
-Default is `3600` seconds.
-
-```bash
-export GEMINI_QUOTA_COOLDOWN_SECONDS=3600
-```
-
-Optional: auto-retry count for quota errors that include a concrete retry delay (for example, `Please retry in 47s`).  
-Default is `3`.
-
-```bash
-export GEMINI_QUOTA_RETRY_ATTEMPTS=3
-```
-
-Optional: choose summary provider explicitly.  
-Default is `gemini`; set `openai` to use `OPENAI_API_KEY`.
-
-```bash
-export SUMMARY_PROVIDER=gemini
-```
-
-## API keys (Gemini + OpenAI)
-
-Gemini (Google AI Studio):
-1. Sign in to Google AI Studio and select or create a project.
-2. Open the API keys section and create a new key.
-3. Export it in your shell:
-   ```bash
-   export GEMINI_API_KEY="your-key"
-   ```
-
-OpenAI:
-1. Sign in to the OpenAI Platform.
-2. Go to API keys and create a new secret key.
-3. Export it in your shell:
-   ```bash
-   export OPENAI_API_KEY="your-key"
-   ```
+The summarizer uses Ollama's `/api/chat` endpoint, sends `think: false`, strips inline `<think>...</think>` blocks if they leak into `message.content`, and processes transcripts one at a time.
 
 ## Usage
 
@@ -77,7 +35,9 @@ OpenAI:
    ./download.sh
    ```
 
-This downloads audio from URLs and transcribes them using Whisper. Processed files go to `finished/`, transcripts to `transcriptions/`, and transcript metadata sidecars to `transcriptions/meta/`.
+`download.sh` starts background polling workers for download, transcription, and summarization. The summarizer worker still processes transcripts one at a time.
+
+Processed files go to `finished/`, transcripts to `transcriptions/`, and transcript metadata sidecars to `transcriptions/meta/`.
 
 It also generates markdown summaries in `summaries/`. If YouTube metadata is available, each summary includes frontmatter like:
 

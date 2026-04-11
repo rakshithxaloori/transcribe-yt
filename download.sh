@@ -1,15 +1,12 @@
 #!/bin/bash
 
-# yt-dlp + transcription + summary pipeline runner
-# usage: put urls in urls.txt (one per line), then run: ./download.sh
+set -euo pipefail
 
 INPUT_FILE="urls.txt"
 OUTPUT_DIR="./audios"
-FINISHED_DIR="./finished"
 TRANSCRIPTIONS_DIR="./transcriptions"
 SUMMARIES_DIR="./summaries"
-MAX_PARALLEL="${MAX_PARALLEL:-4}"
-SLEEP_SECONDS=120
+POLL_SECONDS="${POLL_SECONDS:-120}"
 
 log() {
   local ts
@@ -21,15 +18,12 @@ log() {
   fi
 }
 
-case "$MAX_PARALLEL" in
+case "$POLL_SECONDS" in
   ''|*[!0-9]*|0)
-    log "MAX_PARALLEL must be a positive integer (got: $MAX_PARALLEL)"
+    log "POLL_SECONDS must be a positive integer (got: $POLL_SECONDS)"
     exit 1
     ;;
 esac
-
-mkdir -p "$OUTPUT_DIR" "$FINISHED_DIR" "$TRANSCRIPTIONS_DIR" "$SUMMARIES_DIR"
-[ -f "$INPUT_FILE" ] || : > "$INPUT_FILE"
 
 has_pending_urls() {
   grep -q '[^[:space:]]' "$INPUT_FILE"
@@ -57,70 +51,48 @@ should_exit() {
   ! has_pending_urls && ! has_pending_audio && ! has_pending_transcriptions
 }
 
-download_one() {
-  local url="$1"
-  local fail_dir="$2"
-  local fail_file
-  [ -z "$url" ] && return 0
-  log "downloading: $url"
-  if yt-dlp \
-    --no-progress \
-    -x \
-    --audio-format mp3 \
-    --write-info-json \
-    --no-write-playlist-metafiles \
-    -o "$OUTPUT_DIR/%(title)s.%(ext)s" \
-    "$url"; then
-    log "done: $url"
-  else
-    log "failed: $url"
-    fail_file="$(mktemp "$fail_dir/fail.XXXXXX.txt")"
-    printf "%s\n" "$url" > "$fail_file"
-  fi
-}
+download_urls() {
+  local next_input raw_url url
+  next_input="$(mktemp)"
 
-run_download_batch() {
-  local fail_dir raw_url url
-  fail_dir="$(mktemp -d)"
   while IFS= read -r raw_url || [ -n "$raw_url" ]; do
     url="${raw_url%$'\r'}"
     [ -z "$url" ] && continue
-    while [ "$(jobs -rp | wc -l | tr -d ' ')" -ge "$MAX_PARALLEL" ]; do
-      sleep 0.1
-    done
-    download_one "$url" "$fail_dir" &
-  done < "$INPUT_FILE"
-  wait
 
-  if ls "$fail_dir"/*.txt >/dev/null 2>&1; then
-    cat "$fail_dir"/*.txt > "$INPUT_FILE"
-  else
-    : > "$INPUT_FILE"
-  fi
-  rm -rf "$fail_dir"
+    log "downloading: $url"
+    if yt-dlp \
+      --no-progress \
+      -x \
+      --audio-format mp3 \
+      --write-info-json \
+      --no-write-playlist-metafiles \
+      -o "$OUTPUT_DIR/%(title)s.%(ext)s" \
+      "$url"; then
+      log "done: $url"
+    else
+      log "failed: $url"
+      printf '%s\n' "$url" >> "$next_input"
+    fi
+  done < "$INPUT_FILE"
+
+  mv "$next_input" "$INPUT_FILE"
 }
 
 run_download_once() {
   if has_pending_urls; then
-    run_download_batch
-  else
-    log "download: no pending urls"
+    download_urls
   fi
 }
 
 run_transcribe_once() {
   if has_pending_audio; then
     python3 transcribe.py
-  else
-    log "transcribe: no pending audio"
   fi
 }
 
 run_summarize_once() {
   if has_pending_transcriptions; then
     python3 summarize.py
-  else
-    log "summarize: no pending transcriptions"
   fi
 }
 
@@ -137,9 +109,12 @@ worker_loop() {
       log "$worker_name: pipeline drained, exiting"
       return 0
     fi
-    sleep "$SLEEP_SECONDS"
+    sleep "$POLL_SECONDS"
   done
 }
+
+mkdir -p "$OUTPUT_DIR" "$TRANSCRIPTIONS_DIR" "$SUMMARIES_DIR"
+[ -f "$INPUT_FILE" ] || : > "$INPUT_FILE"
 
 if [ -f .env.local ]; then
   # shellcheck disable=SC1091

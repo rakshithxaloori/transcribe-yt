@@ -20,6 +20,10 @@
 | 2026-03-13 | self | First pass deleted the destination before `Path.replace()`, which weakened same-filesystem replacement semantics | Let `Path.replace()` do the overwrite first; only unlink during the cross-device (`EXDEV`) fallback |
 | 2026-03-13 | user | Asked to move the hardcoded export path into env config | Keep filesystem destinations in `.env.local`/env vars, not source constants |
 | 2026-03-14 | user | Changed direction after the export work landed | Revert the reading-list move/export feature cleanly and keep summaries in `summaries/` |
+| 2026-04-11 | self | Mentioned napkin usage in a progress update again at turn start | Apply napkin silently and keep status updates focused on repo work/results |
+| 2026-04-11 | self | Tried a large multi-file patch and hit another context mismatch in `summarize_helpers.py` | When refactoring a whole module, prefer replacing the file in one controlled patch instead of forcing large context hunks |
+| 2026-04-11 | self | Initially let `SUMMARY_MODEL` override provider-specific model env vars | Prefer provider-specific model env vars (`OLLAMA_MODEL`, `OPENAI_MODEL`, `GEMINI_MODEL`) over the generic fallback |
+| 2026-04-11 | user | Wanted `download.sh` to keep background polling workers | Preserve the worker-based shell orchestration unless the user explicitly asks to remove it |
 
 ## User Preferences
 - (accumulate here as you learn them)
@@ -41,13 +45,15 @@
 - For script cleanups, move env/quota/state helpers into a module and keep the CLI file focused on per-file orchestration.
 - For cleanup reviews, scan files with `nl -ba` and report opportunities by impact with exact file:line pointers.
 - For YouTube publish dates, enable `yt-dlp --write-info-json`, persist per-transcript sidecars in `transcriptions/meta/`, and read `publish_date` when writing summary frontmatter.
+- For Ollama summaries, send `think: false` and still strip inline `<think>...</think>` blocks from `message.content` as a defensive cleanup.
+- For this repo, keep `download.sh` worker-based, but make the summarizer worker strictly single-transcript per Ollama request.
 
 ## Patterns That Don't Work
 - (approaches that failed and why)
 
 ## Domain Notes
 - `./download.sh` downloads audio to `audios/`, then runs `transcribe.py` (writes `transcriptions/*.txt`, moves audio to `finished/`) and `summarize.py` (writes `summaries/*.md`, skips if summary exists).
-- `summarize.py` uses Gemini via the OpenAI SDK with `GEMINI_API_KEY` (also reads `.env.local`).
+- `summarize.py` is Ollama-only now; it reads `.env.local`, requires `OLLAMA_MODEL`, uses `/api/chat`, disables thinking, and strips inline `<think>` blocks if they leak into content.
 - `summarize.py` now archives successfully summarized transcripts under `transcriptions/archive/`.
 - `transcribe.py` currently loads Whisper once (`small`) and transcribes files in `audios/` sequentially, writing `transcriptions/*.txt` and moving audio to `finished/`.
 - `transcribe.py` only scans `audios/` for `.mp3`, `.wav`, `.m4a`, `.flac`, and `.ogg`; raw `.webm` downloads will sit unprocessed unless yt-dlp extracts/converts them first.
